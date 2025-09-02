@@ -11,15 +11,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Set up
 
-The goal of this code is to read in Basia's leaf number and rosette area data collected on Native lines of *Arabidopsis thaliana* in current and future SW chamber common gardens from Nov 2024 - Feb 2025. All leaf counts were done on live plants. All rosette area was collected from imageJ outlines of top down rosette photos.
+The goal of this code is to read in Basia's leaf number and rosette area data collected on Native lines of *Arabidopsis thaliana* in current and future SW chamber common gardens from Nov 2024 - Feb 2025. All leaf counts were done on live plants. All rosette area was collected from imageJ outlines of top down rosette photos. Contact Sophie Buysse if you would like access to the raw photos - they are not included in the github repository.
 
 ```{r libs}
 library(dplyr) # for manipulating data formats and cleaning data
 library(tidyr) # same as above
 library(ggplot2) # for making plots
-library(ggpubr)
-library(emmeans)
-library(sjPlot)
+library(ggpubr) # for making plots
+library(emmeans) # for statistics
 
 # prep for doing statistical analyses
 options(contrasts = c("contr.sum", "contr.poly"))
@@ -30,6 +29,8 @@ set.seed(422)
 ```
 
 ## Read in Data
+Note: we initially split our leaf number counts into a total leaf number of all leaves we could see including tiny leaves that appear under the main rosette and come out at odd angles and only the leaves on the main rosette. The results of both leaf number counts are similar so the publication only focuses on the main rosette leaves though analyses for both are shown throughout this code.
+
 ```{r}
 LeafNum <- read.csv("../data/RosetteLeafNumber_04242025_SB.csv")
 RosArea <- read.csv("../data/RosetteArea_04242025_SB.csv")
@@ -229,7 +230,9 @@ ggplot(data = LeafNum, aes(X11.11.2024))+
   scale_color_manual(values = c("green", "red"))+
   labs(title = "bin = 2")+
   theme_classic()
+```
 
+```{r}
 #totalNum plot by population 
 ggplot(data = TotalNum, aes(X12.30.2024))+
   geom_histogram(aes( fill = Population, color = Population), binwidth = 2, position = 'identity', alpha = 0.2)+
@@ -245,7 +248,9 @@ ggplot(data = TotalNum, aes(X11.11.2024))+
   scale_color_manual(values = c("green", "red"))+
   labs(title = "bin = 2")+
   theme_classic()
+```
 
+```{r}
 #Ros Area by treatment
 ggplot(data = RosArea, aes(X12.23.2024))+ 
   geom_histogram(aes( fill = Trt, color = Trt), binwidth = 2, position = 'identity', alpha = 0.2)+
@@ -348,9 +353,10 @@ ggplot(data = TotalNumTime, aes(x = Date2, y = TotalNum)) +
   theme_classic()
 
 ```
-Area does have some lines that decrease... mistakes? double check them.
+Area does have some lines that decrease... mistakes? double check them. not able to identify mistakes so all values kept.
 
-How do these plots change by days since emergence?
+How do these plots change by days since emergence?  \\
+We chose to do our analysis in terms of days since emergence since this is more biologically representative of the age of each plant rather than days since planting. \
 ```{r, eval = TRUE}
 # rosette leaf number
 ggplot(data = LeafNumTime, aes(x = DaysFromEmergence, y = LeafNum)) +
@@ -418,7 +424,7 @@ TotalNumByDate$Date2 <- julian(TotalNumByDate$Date, origin = as.Date("2024-11-4"
 
 ```
 
-Preliminary figures showing changes in mean growth over time - these should give us a good idea of what the final plots may look like from the models.
+Preliminary figures showing changes in mean growth over time - these should give us a good idea of what the final plots may look like from the models. These figures were used for a poster presentation in May 2025.
 ```{r}
 ln_fig <- ggplot(data = LeafNumByDate, aes(x = Date2, y = LeafNumMean)) +
   geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
@@ -488,7 +494,7 @@ ros_fig
 ## Statistical Analysis
 This section has statistical analysis for each of the three traits. We are doing a two step analysis method where in the first step we fit a model for each genotype of the trait against time to get a growth rate (slope). Then in the second model we fit the growth rate as predicted by population, treatment, and their interaction. One negative about this method is that we lose the uncertainty around the slopes in the first model when we do the second model.
 
-Another way to do this would require lmer to run models with a 3-way interaction. Because we added a quadratic term, these models would require a linear term 3-way interaction and a quadratic term 3-way interaction with genotype nested in treatment as a random effect. Because these were quite complicated with a lot of terms given our sample size, we stuck to the 2-step method
+Another way to do this would require lmer to run models with a 3-way interaction. Because we added a quadratic term, these models would require a linear term 3-way interaction and a quadratic term 3-way interaction with genotype nested in treatment as a random effect. Because these were quite complicated with a lot of terms given our sample size, we stuck to the 2-step method.
 
 #### Prep for plots
 This section  makes plots, so set the theme to be the same for all of them.
@@ -642,7 +648,7 @@ for (j in 1:length(area_by_geno)){
 Now run the second model to look at differences by pop or trt on beta and gamma. Start with the linear only model.
 
 ```{r}
-# actual model for linear step 1
+# step 2 model for linear step 1
 final_mod <- lm(Beta ~ Trt * Pop, data = slopes, contrasts = list(Trt=contr.sum, Pop = contr.sum))
 hist(residuals(final_mod))
 plot(fitted(final_mod), residuals(final_mod, type = "pearson", scaled = TRUE),
@@ -1194,6 +1200,8 @@ figure <- ggarrange(trends_leafarea+rremove("xlab"), beta_leafarea+rremove("xlab
 # needs a 4:3 aspect ratio
 ggsave(figure, filename = "../figures/Micropub_figure.jpg", width = 8, height = 6, units = "in", dpi = 500)
 ```
+
+This figure is further edited in powerpoint to add statistical significance and a custom legend (exported below).
 
 
 ```{r}
