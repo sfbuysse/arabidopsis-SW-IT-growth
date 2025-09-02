@@ -1,0 +1,1221 @@
+---
+title: "GrowthAnalysis_Basia"
+author: "Sophie Buysse"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Set up
+
+The goal of this code is to read in Basia's leaf number and rosette area data collected on Native lines of *Arabidopsis thaliana* in current and future SW chamber common gardens from Nov 2024 - Feb 2025. All leaf counts were done on live plants. All rosette area was collected from imageJ outlines of top down rosette photos.
+
+```{r libs}
+library(dplyr) # for manipulating data formats and cleaning data
+library(tidyr) # same as above
+library(ggplot2) # for making plots
+library(ggpubr)
+library(emmeans)
+library(sjPlot)
+
+# prep for doing statistical analyses
+options(contrasts = c("contr.sum", "contr.poly"))
+
+# set seed
+set.seed(422)
+
+```
+
+## Read in Data
+```{r}
+LeafNum <- read.csv("../data/RosetteLeafNumber_04242025_SB.csv")
+RosArea <- read.csv("../data/RosetteArea_04242025_SB.csv")
+TotalNum <- read.csv("../data/TotalLeafNumber_04242025_SB.csv")
+Emergence<- read.csv("../data/EmergenceDates.csv")
+```
+
+## Format Data
+Organize data frames, remove columns that we don't need, make character values in columns to NA, make number columns numeric 
+
+```{r}
+# add genotype and population columns
+LeafNum$Geno <- substr(LeafNum$PotLabel, 1, 3)
+LeafNum$Population <- "IT"
+LeafNum[LeafNum$Geno > 899 , "Population"] <- "SW"
+# Ros genotype and population columns
+RosArea$Geno <- substr(RosArea$PotLabe, 1,3)
+RosArea$Population <-"IT"
+RosArea[RosArea$Geno > 899, "Population"] <- "SW"
+# TotalNum genotype and population columns
+TotalNum$Geno <- substr(TotalNum$PotLabel, 1, 3)
+TotalNum$Population <- "IT"
+TotalNum[TotalNum$Geno > 899 , "Population"] <- "SW"
+
+
+# remove not needed columns
+LeafNum$Notes1 <- NULL #way one
+LeafNum$Notes2 <- NULL
+LeafNum$Notes3 <- NULL
+LeafNum$Notes4 <- NULL
+LeafNum$Notes5 <- NULL
+LeafNum$Notes6 <- NULL
+LeafNum$X12.23.2024 <- NULL
+LeafNum$X12.27.2024 <- NULL
+LeafNum$X2.14.2025 <- NULL
+LeafNum$X2.17.2025 <- NULL
+LeafNum$X2.21.2025 <- NULL
+LeafNum$X2.24.2025 <- NULL
+LeafNum$X2.28.2025 <- NULL
+LeafNum$X1.20.2025 <- NULL
+LeafNum$X2.10.2025 
+LeafNum$`2/10/2025`<- NULL
+
+#Remove not needed columns of RosArea
+RosArea$Notes6 <- NULL
+RosArea$X2.24.2025 <- NULL
+RosArea$X2.28.2025 <- NULL
+
+# total leaf number
+TotalNum$X12.23.2024 <- NULL
+TotalNum$X12.27.2024 <- NULL
+TotalNum$X2.14.2025 <- NULL
+TotalNum$X2.17.2025 <- NULL
+TotalNum$X2.21.2025 <- NULL
+TotalNum$X2.24.2025 <- NULL
+TotalNum$X2.28.2025 <-NULL
+TotalNum$Notes5 <- NULL
+TotalNum$Notes6 <- NULL
+
+
+
+# get rid of the rows where the plant never emerged (NA, 0, or dead the whole time)
+LeafNum <- LeafNum[!(LeafNum$PotLabel %in% c("114-3-C", "107-3-C","105-3-C","102-3-C", "107-3-F","114-3-F")), ]
+#rid of rows for RosArea 
+RosArea <- RosArea[!(RosArea$PotLabel %in% c("114-3-C","107-3-C", "105-3-C", "102-3-C", "107-3-F", "114-3-F", "","", "Scale 61.0737", "Do the Monday photos first!", "Then the Friday photos")),]
+# change "removed" and "dead" to NA instead so can treat as integers
+LeafNum[LeafNum$X2.10.2025 == "Removed", "X2.10.2025"] <- NA
+LeafNum[LeafNum$X2.7.2025 == "Removed", "X2.7.2025"] <- NA
+LeafNum[LeafNum$X2.3.2025 %in% c("Removed", "removed"), "X2.3.2025"] <- NA
+LeafNum[LeafNum$X1.31.2025 %in% c("Removed ", "Removed"), "X1.31.2025"] <- NA
+LeafNum[LeafNum$X1.27.2025 == "Removed", "X1.27.2025"] <- NA
+LeafNum[LeafNum$X1.24.2025 == "Removed", "X1.24.2025"] <- NA
+LeafNum[LeafNum$X1.20.2024 == "Removed", "X1.20.2024"] <- NA
+
+# add RosArea other columns here
+RosArea[RosArea$X12.6.2024 == "Wrong Plant", "X12.6.2024"] <- NA
+RosArea[RosArea$X12.11.2024 == "wrong plant", "X12.11.2024"] <- NA
+RosArea[RosArea$X1.24.2025 == "?", "X1.24.2025"] <- NA
+
+#Change remove from totalNum
+TotalNum <- TotalNum[!(TotalNum$PotLabel %in% c("114-3-C", "107-3-C","105-3-C","102-3-C", "107-3-F","114-3-F")), ]
+TotalNum[TotalNum$X2.10.2025 == "Removed", "X2.10.2025"] <- NA
+TotalNum[TotalNum$X2.7.2025 == "Removed", "X2.7.2025"] <- NA
+TotalNum[TotalNum$X2.3.2025 == "Removed", "X2.3.2025"] <- NA
+TotalNum[TotalNum$X1.31.2025 %in% c("Removed", "Removed "), "X1.31.2025"] <- NA
+TotalNum[TotalNum$X1.27.2025 == "Removed", "X1.27.2025"] <- NA
+TotalNum[TotalNum$X1.24.2025 == "Removed", "X1.24.2025"] <- NA
+TotalNum[TotalNum$X1.20.2024 %in% c("Removed","Removed "), "X1.20.2024"] <- NA
+# rename a column
+LeafNum <- rename(LeafNum, X1.20.2025 = X1.20.2024) 
+TotalNum <- rename(TotalNum, X1.20.2025 = X1.20.2024) 
+RosArea <-  rename(RosArea, X1.15.2025 = X1.15.2024)
+# make population and trt columns factors and other things integers
+LeafNum <- LeafNum %>%
+  mutate(
+   
+    # add other columns here
+    X2.7.2025 = as.integer(X2.7.2025),
+    X2.3.2025 = as.integer(X2.3.2025),
+    X1.31.2025 = as.integer(X1.31.2025),
+    X1.27.2025 = as.integer(X1.27.2025),
+    X1.24.2025 = as.integer(X1.24.2025),
+    X1.20.2025 = as.integer(X1.20.2025),
+    X1.17.2025 = as.integer(X1.17.2025),
+    X1.13.2025 = as.integer(X1.13.2025),
+    X1.10.2025 = as.integer(X1.10.2025),
+    X1.6.2025 = as.integer(X1.6.2025),
+    X1.3.2025 = as.integer(X1.3.2025),
+    X12.30.2024 = as.integer(X12.30.2024),
+    X2.10.2025 = as.integer(X2.10.2025),
+    Population = as.factor(Population),
+    Trt = as.factor(Trt),
+
+  )
+  RosArea <- RosArea %>% 
+    mutate(
+      X11.25.2024 = as.numeric(X11.25.2024),
+      X11.27.2024 = as.numeric(X11.27.2024),
+      X11.29.2024 = as.numeric(X11.29.2024),
+      X12.2.2024 = as.numeric(X12.2.2024),
+      X12.4.2024 = as.numeric(X12.4.2024),
+      X12.6.2024 = as.numeric(X12.6.2024),
+      X12.9.2024 = as.numeric(X12.9.2024),
+      X12.11.2024 = as.numeric(X12.11.2024),
+      X12.13.2024 = as.numeric(X12.13.2024),
+      X12.16.2024 = as.numeric(X12.16.2024),
+      X12.18.2024 = as.numeric(X12.18.2024),
+      X12.20.2024 = as.numeric(X12.20.2024), 
+      X12.23.2024 = as.numeric(X12.23.2024),
+      X12.25.2024 = as.numeric(X12.25.2024),
+      X12.27.2024 = as.numeric(X12.27.2024),
+      X12.30.2024 = as.numeric(X12.30.2024),
+      X1.1.2025 = as.numeric(X1.1.2025),
+      X1.3.2025 = as.numeric(X1.3.2025),
+      X1.6.2025 = as.numeric(X1.6.2025),
+      X1.8.2025 = as.numeric(X1.8.2025),
+      X1.10.2025 = as.numeric(X1.10.2025),
+      X1.13.2025 = as.numeric(X1.13.2025),
+      X1.15.2025 = as.numeric(X1.15.2025),
+      X1.17.2025 = as.numeric(X1.17.2025),
+      X1.20.2025 = as.numeric(X1.20.2025),
+      X1.22.2025 = as.numeric(X1.22.2025),
+      X1.24.2025 = as.numeric(X1.24.2025),
+      X1.27.2025 = as.numeric(X1.27.2025),
+      X1.29.2025 = as.numeric(X1.29.2025),
+      X1.31.2025 = as.numeric(X1.31.2025),
+      X2.3.2025 = as.numeric(X2.3.2025),
+      X2.5.2025 = as.numeric(X2.5.2025),
+      X2.7.2025 = as.numeric(X2.7.2025),
+      X2.10.2025 = as.numeric(X2.10.2025),
+      Population = as.factor(Population),
+      Trt = as.factor(Trt)
+    )
+ #TotalNum into Factors
+  TotalNum <- TotalNum %>%
+  mutate(
+   
+    # add other columns here
+    X2.7.2025 = as.integer(X2.7.2025),
+    X2.3.2025 = as.integer(X2.3.2025),
+    X1.31.2025 = as.integer(X1.31.2025),
+    X1.27.2025 = as.integer(X1.27.2025),
+    X1.24.2025 = as.integer(X1.24.2025),
+    X1.20.2025 = as.integer(X1.20.2025),
+    X1.17.2025 = as.integer(X1.17.2025),
+    X1.13.2025 = as.integer(X1.13.2025),
+    X1.10.2025 = as.integer(X1.10.2025),
+    X1.6.2025 = as.integer(X1.6.2025),
+    X1.3.2025 = as.integer(X1.3.2025),
+    X12.30.2024 = as.integer(X12.30.2024),
+    X2.10.2025 = as.integer(X2.10.2025),
+    Population = as.factor(Population),
+    Trt = as.factor(Trt),
+
+  )
+
+```
+
+
+## Data Exploration
+
+Let's look at our data by making histograms for each date to see if anything is an outlier we should double check was entered correctly. We use population to color things and separate them first and then treatment. We interactively checked these graphs and only one per trait is shown here.
+
+```{r }
+# leafnum by population
+ggplot(data = LeafNum, aes(X12.30.2024))+ 
+  geom_histogram(aes( fill = Population, color = Population), binwidth = 2, position = 'identity', alpha = 0.2)+ 
+  scale_fill_manual(values = c("blue", "yellow"))+ 
+  scale_color_manual(values = c("blue", "yellow"))+
+  labs(title = "bin = 2")+ 
+  theme_classic()
+
+# leafnum by treatment
+ggplot(data = LeafNum, aes(X11.11.2024))+ 
+  geom_histogram(aes( fill = Trt, color = Trt), binwidth = 2, position = 'identity', alpha = 0.2)+
+  scale_fill_manual(values = c("green", "red"))+
+  scale_color_manual(values = c("green", "red"))+
+  labs(title = "bin = 2")+
+  theme_classic()
+
+#totalNum plot by population 
+ggplot(data = TotalNum, aes(X12.30.2024))+
+  geom_histogram(aes( fill = Population, color = Population), binwidth = 2, position = 'identity', alpha = 0.2)+
+  scale_fill_manual(values = c("blue", "yellow"))+ 
+  scale_color_manual(values = c("blue", "yellow"))+ 
+  labs(title = "bin = 2")+ 
+  theme_classic()
+
+# totalnum plot by treatment
+ggplot(data = TotalNum, aes(X11.11.2024))+ 
+  geom_histogram(aes( fill = Trt, color = Trt), binwidth = 2, position = 'identity', alpha = 0.2)+
+  scale_fill_manual(values = c("green", "red"))+
+  scale_color_manual(values = c("green", "red"))+
+  labs(title = "bin = 2")+
+  theme_classic()
+
+#Ros Area by treatment
+ggplot(data = RosArea, aes(X12.23.2024))+ 
+  geom_histogram(aes( fill = Trt, color = Trt), binwidth = 2, position = 'identity', alpha = 0.2)+
+  scale_fill_manual(values = c("green", "red"))+
+  scale_color_manual(values = c("green", "red"))+
+  labs(title = "bin = 2")+
+  theme_classic()
+
+# rosarea by population
+ggplot(data = RosArea, aes(X1.31.2025))+
+  geom_histogram(aes( fill = Population, color = Population), binwidth = 2, position = 'identity', alpha = 0.2)+
+  scale_fill_manual(values = c("blue", "yellow"))+ 
+  scale_color_manual(values = c("blue", "yellow"))+ 
+  labs(title = "bin = 2")+ 
+  theme_classic() 
+
+```
+Pop 11.11.24, 11.25.24, 12.9.24, 12.30.24 good 
+
+We also want to make initial plots of the leaf number/rosette area over time so we can look for any irregularities.
+
+```{r eval = TRUE}
+# merge in emergence date
+LeafNum <- merge(LeafNum, Emergence[ , c("PotLabel", "EmergenceDate", "BoltingDate")], by = c("PotLabel"), all.x = TRUE)
+TotalNum <- merge(TotalNum, Emergence[ , c("PotLabel", "EmergenceDate", "BoltingDate")], by = c("PotLabel"), all.x = TRUE)
+RosArea <- merge(RosArea, Emergence[ , c("PotLabel", "EmergenceDate", "BoltingDate")], by = c("PotLabel"), all.x = TRUE)
+
+# make long format
+LeafNumTime <- pivot_longer(LeafNum, cols = !(c(Population, Trt, PotLabel, Flat, Geno, Pos, EmergenceDate, BoltingDate)), names_to = "Date", values_to = "LeafNum")
+
+# convert that column do a date format
+LeafNumTime$Date <- as.Date(sub("^X","", LeafNumTime$Date), format = "%m.%d.%Y")
+LeafNumTime$EmergenceDate <- as.Date(LeafNumTime$EmergenceDate, format = "%m/%d/%Y")
+LeafNumTime$BoltingDate <- as.Date(LeafNumTime$BoltingDate, format = "%m/%d/%Y")
+
+LeafNumTime$Date2 <- julian(LeafNumTime$Date, origin = as.Date("2024-11-4"))
+LeafNumTime$DaysFromEmergence <- as.numeric(LeafNumTime$Date - LeafNumTime$EmergenceDate)
+
+#RosArea
+RosAreaTime <- pivot_longer(RosArea, cols = !(c(Population, Trt, PotLabel, Flat, Geno, Pos, EmergenceDate, BoltingDate)), names_to = "Date", values_to = "LeafArea")
+
+RosAreaTime$Date <- as.Date(sub("^X","", RosAreaTime$Date), format = "%m.%d.%Y")
+RosAreaTime$EmergenceDate <- as.Date(RosAreaTime$EmergenceDate, format = "%m/%d/%Y")
+RosAreaTime$BoltingDate <- as.Date(RosAreaTime$BoltingDate, format = "%m/%d/%Y")
+
+RosAreaTime$Date2 <- julian(RosAreaTime$Date, origin = as.Date("2024-11-4"))
+RosAreaTime$DaysFromEmergence <- as.numeric(RosAreaTime$Date - RosAreaTime$EmergenceDate)
+
+#TotalNum 
+TotalNumTime <- pivot_longer(TotalNum, cols = !(c(Population, Trt, PotLabel, Flat, Geno, Pos, EmergenceDate, BoltingDate)), names_to = "Date", values_to = "TotalNum")
+
+TotalNumTime$Date <- as.Date(sub("^X","", TotalNumTime$Date), format = "%m.%d.%Y")
+TotalNumTime$EmergenceDate <- as.Date(TotalNumTime$EmergenceDate, format = "%m/%d/%Y")
+TotalNumTime$BoltingDate <- as.Date(TotalNumTime$BoltingDate, format = "%m/%d/%Y")
+
+
+TotalNumTime$Date2 <- julian(TotalNumTime$Date, origin = as.Date("2024-11-4"))
+TotalNumTime$DaysFromEmergence <- as.numeric(TotalNumTime$Date - TotalNumTime$EmergenceDate)
+```
+
+chaos plots of growth for every genotype
+```{r eval = TRUE}
+# for plotting purposes, make a grouping column
+LeafNumTime$grp <- paste(LeafNumTime$Geno, LeafNumTime$Trt)
+RosAreaTime$grp <- paste(RosAreaTime$Geno, RosAreaTime$Trt)
+TotalNumTime$grp <- paste(TotalNumTime$Geno, TotalNumTime$Trt)
+
+ggplot(data = LeafNumTime, aes(x = Date2, y = LeafNum)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Rosette Leaf Number", 
+      x="Date")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+
+ggplot(data = RosAreaTime, aes(x = Date2, y = LeafArea)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Rosette Leaf Area", 
+      x="Date")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+
+#TotalNum Plot
+ggplot(data = TotalNumTime, aes(x = Date2, y = TotalNum)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Total Leaf Number", 
+      x="Date")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+
+```
+Area does have some lines that decrease... mistakes? double check them.
+
+How do these plots change by days since emergence?
+```{r, eval = TRUE}
+# rosette leaf number
+ggplot(data = LeafNumTime, aes(x = DaysFromEmergence, y = LeafNum)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Rosette Leaf Number", 
+      x="DaysFromEmergence")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+
+#Rosette area
+ggplot(data = RosAreaTime, aes(x = DaysFromEmergence, y = LeafArea)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Rosette Leaf Area", 
+      x="DaysFromEmergence")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+
+#TotalNum Plot
+ggplot(data = TotalNumTime, aes(x = DaysFromEmergence, y = TotalNum)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = grp, col = Population), size = 0.4, alpha = 0.4, show.legend = FALSE)+
+  labs(y="Total Leaf Number", 
+      x="DaysFromEmergence")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_x_discrete(expand = c(0.2,0))+
+  theme_classic()
+```
+
+
+## Summarize
+Create a summary table that has a mean for each date for each population and treatment
+```{r}
+ByDate <- LeafNum %>% group_by(Population, Trt) %>% summarise(across(.col = c(X11.11.2024:X2.10.2025), .fns = list(mean = ~mean(.x, na.rm = TRUE, .group = "keep"))))
+#sample size n = ~sum(!is.na(.x))
+LeafNumByDate <- pivot_longer(ByDate, cols = !(c(Population, Trt )), names_to = "Date", values_to = "LeafNumMean")
+
+LeafNumByDate$Date<- as.Date(sub("^X","", LeafNumByDate$Date), format = "%m.%d.%Y")
+
+LeafNumByDate$Date2 <- julian(LeafNumByDate$Date, origin = as.Date("2024-11-4"))
+
+#RosArea
+RosAreaByDate <- RosArea %>% group_by(Population, Trt) %>% summarise(across(.col = c(X11.25.2024:X2.10.2025), .fns= list(mean = ~mean(.x, na.rm = TRUE, .group = "keep"))))
+RosAreaByDate <- pivot_longer(RosAreaByDate, cols = !(c(Population, Trt)), names_to = "Date", values_to = "RosAreaMean")
+RosAreaByDate$Date <- as.Date(sub("^X","", RosAreaByDate$Date), format = "%m.%d.%Y")
+
+RosAreaByDate$Date2 <- julian(RosAreaByDate$Date, origin = as.Date("2024-11-4"))
+
+#TotalNum 
+TotalNumByDate <-TotalNum %>% group_by(Population, Trt) %>% summarise(across(.col = c(X11.11.2024:X2.10.2025), .fns = list(mean = ~mean(.x, na.rm = TRUE, .group = "keep"))))
+TotalNumByDate <- pivot_longer(TotalNumByDate, cols = !(c(Population, Trt )), names_to = "Date", values_to = "TotalNumMean")
+TotalNumByDate$Date<- as.Date(sub("^X","", TotalNumByDate$Date), format = "%m.%d.%Y")
+
+TotalNumByDate$Date2 <- julian(TotalNumByDate$Date, origin = as.Date("2024-11-4"))
+
+
+```
+
+Preliminary figures showing changes in mean growth over time - these should give us a good idea of what the final plots may look like from the models.
+```{r}
+ln_fig <- ggplot(data = LeafNumByDate, aes(x = Date2, y = LeafNumMean)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = Trt:Population, col = Population, linetype = Trt), show.legend = TRUE, size = 1.5)+ 
+  labs(y="Rosette Leaf Number", 
+      x="Days after planting")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  theme_minimal()+
+  theme(
+   axis.title = element_text(family = "serif", color = "black", size = 35),
+    axis.text = element_text(family = "serif", color = "black", size = 35),
+    axis.line = element_line(colour = 'black', linewidth = 3),
+    axis.ticks = element_line(color = 'black', linewidth = 3),
+    axis.ticks.length=unit(.15, "cm"),
+  )
+
+ggsave(ln_fig, filename = "../figures/LeafNumberByDate.png",width = 12.71, height = 7.68, unit = "in",   dpi = 400)
+
+#RosArea
+ros_fig <- ggplot(data = RosAreaByDate, aes(x = Date2, y = RosAreaMean)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = Trt:Population, col = Population, linetype = Trt), show.legend = TRUE, size = 1.5)+ 
+  labs(y="Rosette Area (cm^2)", 
+      x="Days after planting")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  theme_minimal()+
+  theme(
+   axis.title = element_text(family = "serif", color = "black", size = 35),
+    axis.text = element_text(family = "serif", color = "black", size = 35),
+    axis.line = element_line(colour = 'black', linewidth = 3),
+    axis.ticks = element_line(color = 'black', linewidth = 3),
+    axis.ticks.length=unit(.15, "cm"),
+  )
+
+ggsave(ros_fig, filename = "../figures/RosetteAreaByDate.png", width = 12.71, height = 7.68, unit = "in", dpi = 400)
+
+
+#TotalNum 
+Tn_fig <- ggplot(data = TotalNumByDate, aes(x = Date2, y = TotalNumMean)) +
+  geom_point(aes(col=Population, shape = Trt), size = 1, show.legend = TRUE) +
+  geom_line(aes(group = Trt:Population, col = Population, linetype = Trt), show.legend = TRUE, size = 1.5)+ 
+  labs(y="Total Leaf Number", 
+      x="Days after planting")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  theme_minimal()+
+  theme(
+   axis.title = element_text(family = "serif", color = "black", size = 35),
+    axis.text = element_text(family = "serif", color = "black", size = 35),
+    axis.line = element_line(colour = 'black', linewidth = 3),
+    axis.ticks = element_line(color = 'black', linewidth = 3),
+    axis.ticks.length=unit(.15, "cm"),
+  )
+ggsave(Tn_fig, filename = "../figures/TotalLeafNumByDate.png", width = 12.71, height = 7.68, unit = "in", dpi = 400)
+
+Tn_fig
+ln_fig
+ros_fig
+```
+
+
+## Statistical Analysis
+This section has statistical analysis for each of the three traits. We are doing a two step analysis method where in the first step we fit a model for each genotype of the trait against time to get a growth rate (slope). Then in the second model we fit the growth rate as predicted by population, treatment, and their interaction. One negative about this method is that we lose the uncertainty around the slopes in the first model when we do the second model.
+
+Another way to do this would require lmer to run models with a 3-way interaction. Because we added a quadratic term, these models would require a linear term 3-way interaction and a quadratic term 3-way interaction with genotype nested in treatment as a random effect. Because these were quite complicated with a lot of terms given our sample size, we stuck to the 2-step method
+
+#### Prep for plots
+This section  makes plots, so set the theme to be the same for all of them.
+```{r}
+theme_set(theme_classic())
+theme_update(legend.title = element_text(family = "serif", color = "black", size = 14),
+    legend.text = element_text(family = "serif", color = "black", size = 14),
+    axis.title = element_text(family = "serif", color = "black", size = 14),
+    axis.text = element_text(family = "serif", color = "black", size = 14),
+    axis.line = element_line(colour = 'black', linewidth = 1),
+    axis.ticks = element_line(color = 'black', linewidth = 1),
+    axis.ticks.length=unit(.15, "cm"),
+    legend.spacing.y = unit(0.03, "cm"),
+    panel.border = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    plot.margin = margin(t=0.25, r=0.075, b=0.075, l=0.05, unit = "in")
+    )
+```
+
+
+### Rosette Area
+
+Format data and take first look at trends
+```{r}
+# remove NAs
+rosarea <- RosAreaTime[complete.cases(RosAreaTime), ]
+
+# make geno a factor
+rosarea$Geno <- as.factor(rosarea$Geno)
+
+# add log transformed column
+rosarea$log_area <- log(rosarea$LeafArea)
+
+# plot trends by grouping with loess fit lines
+# check ancova assumptions
+ggscatter(
+  rosarea, x = "Date2", y = "LeafArea",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  rosarea, x = "Date2", y = "log_area",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+# change to days since Emergence
+ggscatter(
+  rosarea, x = "DaysFromEmergence", y = "LeafArea",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  rosarea, x = "DaysFromEmergence", y = "log_area",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+```
+
+Run models to get growth rate (slopes). Quadratic was added for a better fit, so also need to get gammas. 
+
+```{r}
+# add quadratic term, no scaling
+rosarea$quad_date <- rosarea$DaysFromEmergence^2
+
+#add quadratic term - this version is centered to reduce colinearity with the linear term
+#rosarea$quad_date <- scale((rosarea$Date2)^2, scale = FALSE)
+# scaling doesn't change the results, so did not scale to not worry about interpreting scaled date values
+```
+
+
+```{r}
+# make a list of dataframes where each dataframe is the leaf areas for one genotype
+area_by_geno <- list(rep(NA, times = 44))
+genos <- unique(rosarea$Geno)
+trts <- unique(rosarea$Trt)
+
+# current
+for (i in 1:22){
+  area_by_geno[[i]] <- rosarea[(rosarea$Geno == genos[i]& rosarea$Trt == trts[1]), ]
+}
+# 102 and 105 have no data
+
+#do a second loop for fut so notating for area list is easier
+for (i in 1:length(genos)){
+  area_by_geno[[22+i]] <- rosarea[(rosarea$Geno == genos[i]& rosarea$Trt == trts[2]), ]
+}
+
+area_by_geno <- area_by_geno[c(1,3,4,6:44)]
+```
+
+Now run a model to get slopes and gammas - plots were commented out to not clutter up the document.
+```{r}
+# run a model for each item in the area_by_geno list
+# df to save slopes
+slopes <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42))
+slopes$uniqueID <- paste0(slopes$Trt, slopes$Geno )
+slopes$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes[as.numeric(slopes$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(area_by_geno)){
+  tmp <- lm(log_area ~ DaysFromEmergence, data = area_by_geno[[j]])
+  # do any of the models fit well? commented out but decent
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  # model data
+  #modData = tmp$coefficients[1]+area_by_geno[[j]]$DaysFromEmergence*tmp$coefficients[2]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(area_by_geno[[j]]$DaysFromEmergence, area_by_geno[[j]]$log_area, bty="n", col="darkgray")
+  #points(area_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+
+# add quad to initial model
+slopes2 <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42),
+                     gamma = rep(NA, times = 42))
+slopes2$uniqueID <- paste0(slopes$Trt, slopes$Geno )
+slopes2$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes2[as.numeric(slopes2$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(area_by_geno)){
+  tmp <- lm(log_area ~ DaysFromEmergence + quad_date, data = area_by_geno[[j]])
+  # do any of the models fit well? commented plots our but yes
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes2$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  slopes2$gamma[j] <- tmp[["coefficients"]][["quad_date"]]
+  slopes2$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
+  # model data
+  #
+  #modData = tmp$coefficients[1]+as.numeric(area_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(area_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(area_by_geno[[j]]$DaysFromEmergence, area_by_geno[[j]]$log_area, bty="n", col="darkgray")
+  #points(area_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+```
+
+Now run the second model to look at differences by pop or trt on beta and gamma. Start with the linear only model.
+
+```{r}
+# actual model for linear step 1
+final_mod <- lm(Beta ~ Trt * Pop, data = slopes, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod))
+plot(fitted(final_mod), residuals(final_mod, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes$Pop)],
+       pch = c(16, 5)[as.numeric(slopes$Trt)])
+# I think this is better
+summary(final_mod)
+
+# estimated marginal means for plotting
+slope_means <- as.data.frame(emmeans(final_mod, specs = c("Trt", "Pop")))
+
+# plot. mean is the predicted value.
+ggplot(data = slopes, aes(y = Beta, x = Trt))+
+  geom_point(aes(col = Pop), alpha = 0.6, shape = 16, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_point(data = slope_means, aes(x = Trt, y = emmean, fill = Pop),position = position_dodge(width = 0.1), alpha = 0.8, shape = 21, size = 3)+ # big point for pop means
+  geom_errorbar(data = slope_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.1), width = 0.1, size = 0.8, show.legend = TRUE)+
+  #geom_line(data = slope_means, aes(group = Pop, col = Pop), size = 1)+
+  labs(x = "Treatment")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))
+
+# without log, Italy has two low outliers in Cur that don't appear when log transformed.
+```
+
+Now run the second model with the quadratic. Note that the pop effect disappears without log transformed data.
+
+```{r}
+final_mod2_beta <- lm(Beta ~ Trt * Pop, data = slopes2, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_beta))
+plot(fitted(final_mod2_beta), residuals(final_mod2_beta, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2$Trt)])
+summary(final_mod2_beta)
+# all the standard errors for each term are identical
+final_mod2_gamma <- lm(gamma ~ Trt * Pop, data = slopes2, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_gamma))
+plot(fitted(final_mod2_gamma), residuals(final_mod2_gamma, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2$Trt)])
+summary(final_mod2_gamma)
+
+final_mod2_int <- lm(intercept ~ Trt * Pop, data = slopes2, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+
+# estimated marginal means for plotting
+slope2_means <- as.data.frame(emmeans(final_mod2_beta, specs = c("Trt", "Pop")))
+slope2_gammas <- as.data.frame(emmeans(final_mod2_gamma, specs = c("Trt", "Pop")))
+slope2_intercepts <- as.data.frame(emmeans(final_mod2_int, specs = c("Trt", "Pop")))
+
+# plot. mean is the predicted value... that is good and makes sense?
+beta_leafarea <- ggplot(data = slopes2, aes(y = Beta, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+  geom_point(data = slope2_means, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+    scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+gamma_leafarea <- ggplot(data = slopes2, aes(y = gamma, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_gammas, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop), position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+  geom_point(data = slope2_gammas, aes(x = Trt, y = emmean, fill = Pop, shape = Pop), position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment", y = "Gamma")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+```
+Plot for quadratic fit with model prediction lines
+```{r}
+#would need to create a custom function for each line
+RosAreaTime$log_area <- log(RosAreaTime$LeafArea)
+
+
+trends_leafarea <- ggplot(data = RosAreaTime, aes(x = DaysFromEmergence, y = log_area))+
+  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.4, show.legend = TRUE)+
+  geom_function(fun = function(x) slope2_intercepts$emmean[1] + slope2_means$emmean[1]*x + slope2_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur SW
+geom_function(fun = function(x) slope2_intercepts$emmean[2] + slope2_means$emmean[2]*x + slope2_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
+geom_function(fun = function(x) slope2_intercepts$emmean[3] + slope2_means$emmean[3]*x + slope2_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
+geom_function(fun = function(x) slope2_intercepts$emmean[4] + slope2_means$emmean[4]*x + slope2_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
+  labs(x = "Days After Planting", y = "Log Rosette Area")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_linetype_manual(name = "Treatment",
+                        labels = c("Current", "Future"),
+                        values = c("solid", "dotdash"))
+
+trends_leafarea
+beta_leafarea
+gamma_leafarea
+```
+
+
+
+### Rosette Leaf Number
+```{r}
+# remove NAs
+rosnum <- LeafNumTime[complete.cases(LeafNumTime), ]
+
+# remove zeros
+rosnum <- rosnum[!(rosnum$LeafNum == 0), ]
+
+# make geno a factor
+rosnum$Geno <- as.factor(rosnum$Geno)
+# add log transformed column
+rosnum$log_ln <- log(rosnum$LeafNum)
+
+
+# plot trends by grouping factor
+ggscatter(
+  rosnum, x = "Date2", y = "LeafNum",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  rosnum, x = "Date2", y = "log_ln",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+# by Days Since Emergence
+ggscatter(
+  rosnum, x = "DaysFromEmergence", y = "LeafNum",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  rosnum, x = "DaysFromEmergence", y = "log_ln",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+```
+
+Run models to get growth rate (slopes). Quadratic was added for a better fit, so also need to get gammas. 
+
+```{r}
+# add quadratic term, no scaling
+rosnum$quad_date <- rosnum$DaysFromEmergence^2
+```
+
+
+```{r}
+# make a list of dataframes where each dataframe is the leaf areas for one genotype
+ln_by_geno <- list(rep(NA, times = 44))
+genos_ln <- unique(rosnum$Geno)
+trts_ln <- unique(rosnum$Trt)
+
+# current
+for (i in 1:22){
+  ln_by_geno[[i]] <- rosnum[(rosnum$Geno == genos_ln[i]& rosnum$Trt == trts_ln[1]), ]
+}
+# 102 and 105 again have no data
+
+# fut
+for (i in 1:length(genos_ln)){
+  ln_by_geno[[22+i]] <- rosnum[(rosnum$Geno == genos_ln[i]& rosnum$Trt == trts_ln[2]), ]
+}
+
+ln_by_geno <- ln_by_geno[c(1,3,4,6:44)]
+```
+
+Now run a model to get slopes and gammas - plots were commented out to not clutter up the document.
+```{r}
+# run a model for each item in the ln_by_geno list
+slopes_ln <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42))
+slopes_ln$uniqueID <- paste0(slopes_ln$Trt, slopes_ln$Geno )
+slopes_ln$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes_ln[as.numeric(slopes_ln$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(ln_by_geno)){
+  tmp <- lm(LeafNum ~ DaysFromEmergence, data = ln_by_geno[[j]])
+  # do any of the models fit well?
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes_ln$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  # model data
+  modData = tmp$coefficients[1]+ln_by_geno[[j]]$DaysFromEmergence*tmp$coefficients[2]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(ln_by_geno[[j]]$DaysFromEmergence, ln_by_geno[[j]]$LeafNum, bty="n", col="darkgray")
+  #points(ln_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+
+# check quadratic
+
+slopes2_ln <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42),
+                     gamma = rep(NA, times = 42))
+slopes2_ln$uniqueID <- paste0(slopes_ln$Trt, slopes_ln$Geno )
+slopes2_ln$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes2_ln[as.numeric(slopes2_ln$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(ln_by_geno)){
+  tmp <- lm(LeafNum ~ DaysFromEmergence + quad_date, data = ln_by_geno[[j]])
+  # do any of the models fit well?
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes2_ln$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  slopes2_ln$gamma[j] <- tmp[["coefficients"]][["quad_date"]]
+  slopes2_ln$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
+  # model data
+  #modData = tmp$coefficients[1]+as.numeric(ln_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(ln_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(ln_by_geno[[j]]$DaysFromEmergence, ln_by_geno[[j]]$LeafNum, bty="n", col="darkgray")
+  #points(ln_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+```
+
+Now run the second model to look at differences by pop or trt on beta and gamma. Start with the linear only model.
+
+```{r}
+# actual model for linear step 1
+final_mod_ln <- lm(Beta ~ Trt * Pop, data = slopes_ln, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod_ln))
+plot(fitted(final_mod_ln), residuals(final_mod_ln, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes_ln$Pop)],
+       pch = c(16, 5)[as.numeric(slopes_ln$Trt)])
+
+summary(final_mod_ln)
+
+# estimated marginal means for plotting
+slope_ln_means <- as.data.frame(emmeans(final_mod_ln, specs = c("Trt", "Pop")))
+
+# plot. mean is the predicted value.
+ggplot(data = slopes_ln, aes(y = Beta, x = Trt))+
+  geom_point(aes(col = Pop), alpha = 0.6, shape = 16, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_point(data = slope_ln_means, aes(x = Trt, y = emmean, fill = Pop),position = position_dodge(width = 0.5), alpha = 0.8, shape = 21, size = 3)+ # big point for pop means
+  geom_errorbar(data = slope_ln_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.1, size = 0.8, show.legend = TRUE)+
+  #geom_line(data = slope_means, aes(group = Pop, col = Pop), size = 1)+
+  labs(x = "Treatment")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))
+```
+
+Now run the second model with the quadratic.
+```{r}
+final_mod2_ln_beta <- lm(Beta ~ Trt * Pop, data = slopes2_ln, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_ln_beta))
+plot(fitted(final_mod2_ln_beta), residuals(final_mod2_ln_beta, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2_ln$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2_ln$Trt)])
+summary(final_mod2_ln_beta)
+# all the standard errors for each term are identical
+final_mod2_ln_gamma <- lm(gamma ~ Trt * Pop, data = slopes2_ln, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_ln_gamma))
+plot(fitted(final_mod2_ln_gamma), residuals(final_mod2_ln_gamma, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2_ln$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2_ln$Trt)])
+summary(final_mod2_ln_gamma)
+
+final_mod2_ln_int <- lm(intercept ~ Trt * Pop, data = slopes2_ln, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+
+# estimated marginal means for plotting
+slope2_ln_means <- as.data.frame(emmeans(final_mod2_ln_beta, specs = c("Trt", "Pop")))
+slope2_ln_gammas <- as.data.frame(emmeans(final_mod2_ln_gamma, specs = c("Trt", "Pop")))
+slope2_ln_intercepts <- as.data.frame(emmeans(final_mod2_ln_int, specs = c("Trt", "Pop")))
+
+# plot
+beta_leafnum <- ggplot(data = slopes2_ln, aes(y = Beta, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_ln_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+    geom_point(data = slope2_ln_means, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+    scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+gamma_leafnum <- ggplot(data = slopes2_ln, aes(y = gamma, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_ln_gammas, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+    geom_point(data = slope2_ln_gammas, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment", y = "Gamma")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+    scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+```
+Plot model predictions over raw data
+```{r}
+trends_leafnum <- ggplot(data = LeafNumTime, aes(x = DaysFromEmergence, y = LeafNum))+
+  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.4, show.legend = TRUE)+
+  geom_function(fun = function(x) slope2_ln_intercepts$emmean[1] + slope2_ln_means$emmean[1]*x + slope2_ln_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur SW
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[2] + slope2_ln_means$emmean[2]*x + slope2_ln_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[3] + slope2_ln_means$emmean[3]*x + slope2_ln_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[4] + slope2_ln_means$emmean[4]*x + slope2_ln_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
+  labs(x = "Days After Emergence", y = "Rosette Leaf Number")+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_linetype_manual(name = "Treatment",
+                        labels = c("Current", "Future"),
+                        values = c("solid", "dotdash"))
+
+trends_leafnum
+beta_leafnum
+gamma_leafnum
+```
+
+
+### Total Leaf Number
+```{r}
+# remove NAs
+totnum <- TotalNumTime[complete.cases(TotalNumTime), ]
+# remove zeros
+totnum <- totnum[!(totnum$TotalNum == 0), ]
+
+# make geno a factor
+totnum$Geno <- as.factor(totnum$Geno)
+
+# add log transformed column
+totnum$log_tn <- log(totnum$TotalNum)
+
+# plot trends by grouping factor
+ggscatter(
+  totnum, x = "Date2", y = "TotalNum",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  totnum, x = "Date2", y = "log_tn",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  totnum, x = "DaysFromEmergence", y = "TotalNum",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+
+ggscatter(
+  totnum, x = "DaysFromEmergence", y = "log_tn",
+  facet.by  = c("Population", "Trt"), 
+  short.panel.labs = FALSE
+  )+
+  stat_smooth(method = "loess", span = 0.9)
+```
+
+Run models to get growth rate (slopes). Quadratic was added for a better fit, so also need to get gammas. 
+
+```{r}
+# add quadratic term, no scaling
+totnum$quad_date <- totnum$DaysFromEmergence^2
+
+```
+
+
+```{r}
+# make a list of dataframes where each dataframe is the leaf areas for one genotype
+tn_by_geno <- list(rep(NA, times = 44))
+genos_tn <- unique(totnum$Geno)
+trts_tn <- unique(totnum$Trt)
+
+# current
+for (i in 1:22){
+  tn_by_geno[[i]] <- totnum[(totnum$Geno == genos_ln[i]& totnum$Trt == trts_ln[1]), ]
+}
+
+# future
+for (i in 1:length(genos_tn)){
+  tn_by_geno[[22+i]] <- totnum[(totnum$Geno == genos_ln[i]& totnum$Trt == trts_ln[2]), ]
+}
+
+tn_by_geno <- tn_by_geno[c(1,3,4,6:44)]
+```
+
+Now run a model to get slopes and gammas - plots were commented out to not clutter up the document.
+```{r}
+# run a model for each item in the area_by_geno list
+slopes_tn <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42))
+slopes_tn$uniqueID <- paste0(slopes_tn$Trt, slopes_tn$Geno )
+slopes_tn$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes_tn[as.numeric(slopes_tn$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(tn_by_geno)){
+  tmp <- lm(TotalNum ~ DaysFromEmergence, data = tn_by_geno[[j]])
+  # do any of the models fit well?
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes_tn$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  # model data
+  #modData = tmp$coefficients[1]+tn_by_geno[[j]]$DaysFromEmergence*tmp$coefficients[2]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(tn_by_geno[[j]]$DaysFromEmergence, tn_by_geno[[j]]$TotalNum, bty="n", col="darkgray")
+  #points(tn_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+
+# check quadratic
+slopes2_tn <- data.frame(Geno = c(genos[c(1,3,4,6:22)], genos), 
+                     Trt = as.factor(c(rep("Cur", times = 20), rep("Fut", times = 22))), 
+                     Beta = rep(NA, times = 42),
+                     gamma = rep(NA, times = 42))
+slopes2_tn$uniqueID <- paste0(slopes_tn$Trt, slopes_tn$Geno )
+slopes2_tn$Pop <- factor("SW", levels = c("SW", "IT"))
+slopes2_tn[as.numeric(slopes2_tn$Geno) < 11, "Pop" ] <- "IT"
+
+for (j in 1:length(tn_by_geno)){
+  tmp <- lm(TotalNum ~ DaysFromEmergence + quad_date, data = tn_by_geno[[j]])
+  # do any of the models fit well?
+  #hist(residuals(tmp))
+  #plot(fitted(tmp), residuals(tmp, type = "pearson", scaled = TRUE))
+  slopes2_tn$Beta[j] <- tmp[["coefficients"]][["DaysFromEmergence"]]
+  slopes2_tn$gamma[j] <- tmp[["coefficients"]][["quad_date"]]
+  slopes2_tn$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
+  # model data
+  #modData = tmp$coefficients[1]+as.numeric(tn_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(tn_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  ## look at the model-predicted data curve on top of the actual data
+  #plot(tn_by_geno[[j]]$DaysFromEmergence, tn_by_geno[[j]]$TotalNum, bty="n", col="darkgray")
+  #points(tn_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+
+}
+```
+
+Now run the second model to look at differences by pop or trt on beta and gamma. Only doing the quadratic because that has been the better fit for the other two models as well.
+
+```{r}
+final_mod2_tn_beta <- lm(Beta ~ Trt * Pop, data = slopes2_tn, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_tn_beta))
+plot(fitted(final_mod2_tn_beta), residuals(final_mod2_tn_beta, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2_tn$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2_tn$Trt)])
+summary(final_mod2_tn_beta)
+# all the standard errors for each term are identical
+final_mod2_tn_gamma <- lm(gamma ~ Trt * Pop, data = slopes2_tn, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+hist(residuals(final_mod2_tn_gamma))
+plot(fitted(final_mod2_tn_gamma), residuals(final_mod2_tn_gamma, type = "pearson", scaled = TRUE),
+       col = c("red", "blue")[as.numeric(slopes2_tn$Pop)],
+       pch = c(16, 5)[as.numeric(slopes2_tn$Trt)])
+summary(final_mod2_tn_gamma)
+
+final_mod2_tn_int <- lm(intercept ~ Trt * Pop, data = slopes2_tn, contrasts = list(Trt=contr.sum, Pop = contr.sum))
+
+# estimated marginal means for plotting
+slope2_tn_means <- as.data.frame(emmeans(final_mod2_tn_beta, specs = c("Trt", "Pop")))
+slope2_tn_gammas <- as.data.frame(emmeans(final_mod2_tn_gamma, specs = c("Trt", "Pop")))
+slope2_tn_intercepts <- as.data.frame(emmeans(final_mod2_tn_int, specs = c("Trt", "Pop")))
+
+# plot
+beta_totalnum <- ggplot(data = slopes2_tn, aes(y = Beta, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_tn_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+    geom_point(data = slope2_tn_means, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+    scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+gamma_totalnum <- ggplot(data = slopes2_tn, aes(y = gamma, x = Trt))+
+  geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
+  geom_errorbar(data = slope2_tn_gammas, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
+  geom_point(data = slope2_tn_gammas, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
+  labs(x = "Treatment", y = "Gamma")+
+  scale_color_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c("#009E73", "#CC79A7"))+
+    scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(24, 21))
+
+```
+
+
+Plot with model predicted growth on top of raw growth
+```{r}
+trends_totalnum <- ggplot()+
+  geom_function(fun = function(x) slope2_tn_intercepts$emmean[1] + slope2_tn_means$emmean[1]*x + slope2_tn_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100))+ # Cur SW
+geom_function(fun = function(x) slope2_tn_intercepts$emmean[2] + slope2_tn_means$emmean[2]*x + slope2_tn_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100))+ # Fut SW
+geom_function(fun = function(x) slope2_tn_intercepts$emmean[3] + slope2_tn_means$emmean[3]*x + slope2_tn_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100))+ # Cur IT
+geom_function(fun = function(x) slope2_tn_intercepts$emmean[4] + slope2_tn_means$emmean[4]*x + slope2_tn_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100))+ # Fut IT
+  labs(x = "Days After Emergence", y = "Total Leaf Number")
+
+trends_totalnum
+beta_totalnum
+gamma_totalnum
+```
+
+# Manuscript Plot
+create multipanel figure for manuscript. This initially had all 3 traits but we decided on 7/16/2025 that we can cut total leaf number for simplicity to focus on rosette leaf number and rosette area
+.
+```{r}
+figure <- ggarrange(trends_leafarea+rremove("xlab"), beta_leafarea+rremove("xlab"), gamma_leafarea+rremove("xlab"),
+                    trends_leafnum, beta_leafnum, gamma_leafnum,
+          labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I"),
+          ncol = 3, nrow = 2,
+          widths = c(1, 0.49, 0.51 ),
+          common.legend = TRUE, # goes based on the first plot
+          legend = "top",
+          align = "hv")
+# needs a 4:3 aspect ratio
+ggsave(figure, filename = "../figures/Micropub_figure.jpg", width = 8, height = 6, units = "in", dpi = 500)
+```
+
+
+```{r}
+# top legend
+legend_points2 <- data.frame(xvals = c(1, 1.5), yvals = c(1, 1), text = c("Italy", "Sweden"), Pop = as.factor(c("IT", "SW")))
+legend_fig <- ggplot()+
+  geom_point(data = legend_points2, aes(x = xvals, y = yvals, fill = Pop, shape = Pop), size = 4, show.legend = FALSE)+
+  geom_segment(aes(x = 2.2, y = 1, xend = 2.7, yend = 1), linetype = "solid", linewidth = 1.25)+
+  geom_segment(aes(x = 3.2, y = 1, xend = 3.7, yend = 1), linetype = "dotdash", linewidth = 1.25)+
+  geom_text(aes(x = c(1.2, 1.8, 2.9, 3.9), y = c(1, 1, 1, 1), label = c("Italy", "Sweden", "Current", "Future")))+
+  scale_color_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_fill_manual(name = "Population",
+                     labels = c("IT", "SW"),
+                     values = c("#CC79A7", "#009E73"))+
+  scale_shape_manual(name = "Population",
+                     labels = c("Sweden", "Italy"),
+                     values = c(21, 24))+
+  xlim(c(0.87, 4.12))+
+  theme_void()
+legend_fig
+# for updating figure legend after
+ggsave(legend_fig, filename = "../figures/legend.png", dpi = 500, width = 8, height = 0.5, units = "in")
+```

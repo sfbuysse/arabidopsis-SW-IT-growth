@@ -1,0 +1,60 @@
+---
+title: "Randomization_Basia"
+author: "Sophie Buysse"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The goal of this code is to choose which lines Basia will use in her project. She is going to use 12 IT lines (including the IT parent) and 12 SW lines (including the SW parent). There are only 12 IT lines including the RIL parent, so we only need to choose which SW lines to use. We are only going to choose from lines that have emerged in both environments as of 11/11/2024 - the first day of week 2 of the experiment.
+
+## Code Set Up
+
+Load any packages and set seed
+
+```{r}
+set.seed(725)
+```
+
+
+## Pick Genotypes
+test code
+```{r, eval = FALSE}
+# set seed
+set.seed(2)
+# make list
+tmp <- c(1:20)
+# sample list
+sample(tmp, size = 11, replace = FALSE)
+```
+
+actual code
+```{r}
+# list of SW genos that have emerged, excluding RIL par
+sw_genos <- c(901, 902, 903, 904, 905, 906, 908, 909, 910, 922, 912, 913, 915, 916, 919, 921, 922, 923, 926, 929, 933, 934, 935, 937, 938, 940, 942, 943, 945)
+
+# use sample() to pick 11 genos
+sw_genos2 <- sample(sw_genos, size = 11, replace = FALSE)
+print("The Sweden genotypes we will count leaf number on are: ")
+print(sw_genos2)
+
+# pick SW RIL par to follow
+sw_ril <- c(16:20)
+sw_ril2 <- sample(sw_ril, size = 1, replace = FALSE)
+print(paste0("The Sweden RIL parent replicate to cound leaf number on is: ", sw_ril2))
+
+# pick IT RIL par to follow
+it_ril <- c(16:20)
+it_ril2 <- sample(it_ril, size = 1, replace = FALSE)
+print(paste0("The Italy RIL parent replicate to cound leaf number on is: ", it_ril2))
+
+
+```
+
+After choosing the genotypes, we made a leaf number count spreadsheet with only these genotypes included. The spreadsheet is in Basia's folder and called LeafNumber_NativeLines_GS4.xlsx
+

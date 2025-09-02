@@ -1,0 +1,9 @@
+# ignore drafts
+*.docx
+*.xml
+*.pdf
+# ignore photos of plants and people
+Photos/
+UURAF_photos/
+#ignore code used in process and versions with different authors
+scripts/archive_code/
