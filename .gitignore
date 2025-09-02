@@ -1,6 +1,6 @@
-# ignore drafts
+# ignore drafts and blank printed datasheets
 *.docx
-*.xml
+*.xlsx
 *.pdf
 # ignore photos of plants and people
 Photos/
