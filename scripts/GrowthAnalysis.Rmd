@@ -706,7 +706,7 @@ beta_leafarea <- ggplot(data = slopes2, aes(y = Beta, x = Trt))+
   geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
   geom_errorbar(data = slope2_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
   geom_point(data = slope2_means, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
-  labs(x = "Treatment")+
+  labs(x = "Treatment", y = expression(paste("Leaf Area :  ", beta)))+
   scale_color_manual(name = "Population",
                      labels = c("Sweden", "Italy"),
                      values = c("#009E73", "#CC79A7"))+
@@ -721,7 +721,7 @@ gamma_leafarea <- ggplot(data = slopes2, aes(y = gamma, x = Trt))+
   geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
   geom_errorbar(data = slope2_gammas, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop), position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
   geom_point(data = slope2_gammas, aes(x = Trt, y = emmean, fill = Pop, shape = Pop), position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
-  labs(x = "Treatment", y = "Gamma")+
+  labs(x = "Treatment", y = expression(paste("Leaf Area :  ", gamma)))+
   scale_color_manual(name = "Population",
                      labels = c("Sweden", "Italy"),
                      values = c("#009E73", "#CC79A7"))+
@@ -745,7 +745,7 @@ trends_leafarea <- ggplot(data = RosAreaTime, aes(x = DaysFromEmergence, y = log
 geom_function(fun = function(x) slope2_intercepts$emmean[2] + slope2_means$emmean[2]*x + slope2_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
 geom_function(fun = function(x) slope2_intercepts$emmean[3] + slope2_means$emmean[3]*x + slope2_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
 geom_function(fun = function(x) slope2_intercepts$emmean[4] + slope2_means$emmean[4]*x + slope2_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
-  labs(x = "Days After Planting", y = "Log Rosette Area")+
+  labs(x = "Days After Planting", y = "Log Leaf Area")+
   scale_color_manual(name = "Population",
                      labels = c("IT", "SW"),
                      values = c("#CC79A7", "#009E73"))+
@@ -943,7 +943,7 @@ beta_leafnum <- ggplot(data = slopes2_ln, aes(y = Beta, x = Trt))+
   geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
   geom_errorbar(data = slope2_ln_means, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
     geom_point(data = slope2_ln_means, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
-  labs(x = "Treatment")+
+  labs(x = "Treatment", y = expression(paste("Leaf Number :  ", beta)))+
   scale_color_manual(name = "Population",
                      labels = c("Sweden", "Italy"),
                      values = c("#009E73", "#CC79A7"))+
@@ -958,7 +958,7 @@ gamma_leafnum <- ggplot(data = slopes2_ln, aes(y = gamma, x = Trt))+
   geom_point(aes(col = Pop, fill = Pop, shape = Pop), alpha = 0.6, position = position_jitter(width = .3, height = 0), size = 2)+
   geom_errorbar(data = slope2_ln_gammas, aes(x = Trt, y = emmean, ymin=lower.CL, ymax = upper.CL, col = Pop),position = position_dodge(width = 0.5), width = 0.3, size = 0.8, show.legend = FALSE)+
     geom_point(data = slope2_ln_gammas, aes(x = Trt, y = emmean, fill = Pop, shape = Pop),position = position_dodge(width = 0.5), size = 3)+ # big point for pop means
-  labs(x = "Treatment", y = "Gamma")+
+  labs(x = "Treatment", y = expression(paste("Leaf Number :  ",gamma)))+
   scale_color_manual(name = "Population",
                      labels = c("Sweden", "Italy"),
                      values = c("#009E73", "#CC79A7"))+
@@ -978,7 +978,7 @@ trends_leafnum <- ggplot(data = LeafNumTime, aes(x = DaysFromEmergence, y = Leaf
 geom_function(fun = function(x) slope2_ln_intercepts$emmean[2] + slope2_ln_means$emmean[2]*x + slope2_ln_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
 geom_function(fun = function(x) slope2_ln_intercepts$emmean[3] + slope2_ln_means$emmean[3]*x + slope2_ln_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
 geom_function(fun = function(x) slope2_ln_intercepts$emmean[4] + slope2_ln_means$emmean[4]*x + slope2_ln_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
-  labs(x = "Days After Emergence", y = "Rosette Leaf Number")+
+  labs(x = "Days After Emergence", y = "Leaf Number")+
   scale_color_manual(name = "Population",
                      labels = c("IT", "SW"),
                      values = c("#CC79A7", "#009E73"))+
@@ -1190,7 +1190,7 @@ create multipanel figure for manuscript. This initially had all 3 traits but we 
 .
 ```{r}
 figure <- ggarrange(trends_leafarea+rremove("xlab"), beta_leafarea+rremove("xlab"), gamma_leafarea+rremove("xlab"),
-                    trends_leafnum, beta_leafnum, gamma_leafnum,
+                    trends_leafnum, beta_leafnum+rremove("xlab"), gamma_leafnum+rremove("xlab"),
           labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I"),
           ncol = 3, nrow = 2,
           widths = c(1, 0.49, 0.51 ),
