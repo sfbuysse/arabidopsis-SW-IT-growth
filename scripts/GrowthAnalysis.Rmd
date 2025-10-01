@@ -740,11 +740,14 @@ RosAreaTime$log_area <- log(RosAreaTime$LeafArea)
 
 
 trends_leafarea <- ggplot(data = RosAreaTime, aes(x = DaysFromEmergence, y = log_area))+
-  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.4, show.legend = TRUE)+
-  geom_function(fun = function(x) slope2_intercepts$emmean[1] + slope2_means$emmean[1]*x + slope2_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur SW
-geom_function(fun = function(x) slope2_intercepts$emmean[2] + slope2_means$emmean[2]*x + slope2_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
-geom_function(fun = function(x) slope2_intercepts$emmean[3] + slope2_means$emmean[3]*x + slope2_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
-geom_function(fun = function(x) slope2_intercepts$emmean[4] + slope2_means$emmean[4]*x + slope2_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
+  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.3, show.legend = TRUE)+
+  geom_function(fun = function(x) slope2_intercepts$emmean[1] + slope2_means$emmean[1]*x + slope2_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.9)+ # Cur SW
+geom_function(fun = function(x) slope2_intercepts$emmean[2] + slope2_means$emmean[2]*x + slope2_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.9)+ # Fut SW
+geom_function(fun = function(x) slope2_intercepts$emmean[3] + slope2_means$emmean[3]*x + slope2_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.9)+ # Cur IT
+geom_function(fun = function(x) slope2_intercepts$emmean[4] + slope2_means$emmean[4]*x + slope2_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.9)+ # Fut IT
+  geom_segment(aes(x = 0, xend = 25, y = -3.5, yend = -3.5), col = "#D55E00", size = 1)+
+  geom_segment(aes(x = 25, xend = 81, y = -3.5, yend = -3.5), col = "#56B4E9", size = 1)+
+  geom_segment(aes(x = 81, xend = 102, y = -3.5, yend = -3.5), col = "#F0E442", size = 1)+
   labs(x = "Days After Planting", y = "Log Leaf Area")+
   scale_color_manual(name = "Population",
                      labels = c("IT", "SW"),
@@ -973,11 +976,14 @@ gamma_leafnum <- ggplot(data = slopes2_ln, aes(y = gamma, x = Trt))+
 Plot model predictions over raw data
 ```{r}
 trends_leafnum <- ggplot(data = LeafNumTime, aes(x = DaysFromEmergence, y = LeafNum))+
-  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.4, show.legend = TRUE)+
-  geom_function(fun = function(x) slope2_ln_intercepts$emmean[1] + slope2_ln_means$emmean[1]*x + slope2_ln_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur SW
-geom_function(fun = function(x) slope2_ln_intercepts$emmean[2] + slope2_ln_means$emmean[2]*x + slope2_ln_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut SW
-geom_function(fun = function(x) slope2_ln_intercepts$emmean[3] + slope2_ln_means$emmean[3]*x + slope2_ln_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.8)+ # Cur IT
-geom_function(fun = function(x) slope2_ln_intercepts$emmean[4] + slope2_ln_means$emmean[4]*x + slope2_ln_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.8)+ # Fut IT
+  geom_line(aes(group = grp, col = Population, linetype = Trt), size = 0.4, alpha = 0.3, show.legend = TRUE)+
+  geom_function(fun = function(x) slope2_ln_intercepts$emmean[1] + slope2_ln_means$emmean[1]*x + slope2_ln_gammas$emmean[1]*x^2, colour = "#009E73", linetype = "solid", xlim=c(0, 100), size = 0.9)+ # Cur SW
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[2] + slope2_ln_means$emmean[2]*x + slope2_ln_gammas$emmean[2]*x^2, colour = "#009E73", linetype = "dotdash", xlim=c(0, 100), size = 0.9)+ # Fut SW
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[3] + slope2_ln_means$emmean[3]*x + slope2_ln_gammas$emmean[3]*x^2, colour = "#CC79A7", linetype = "solid", xlim=c(0, 100), size = 0.9)+ # Cur IT
+geom_function(fun = function(x) slope2_ln_intercepts$emmean[4] + slope2_ln_means$emmean[4]*x + slope2_ln_gammas$emmean[4]*x^2, colour = "#CC79A7", linetype = "dotdash", xlim=c(0, 100), size = 0.9)+ # Fut IT
+  geom_segment(aes(x = 0, xend = 25, y = -2, yend = -2), col = "#D55E00", size = 1)+
+  geom_segment(aes(x = 25, xend = 81, y = -2, yend = -2), col = "#56B4E9", size = 1)+
+  geom_segment(aes(x = 81, xend = 102, y = -2, yend = -2), col = "#F0E442", size = 1)+
   labs(x = "Days After Emergence", y = "Leaf Number")+
   scale_color_manual(name = "Population",
                      labels = c("IT", "SW"),
