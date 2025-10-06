@@ -1233,3 +1233,13 @@ legend_fig
 # for updating figure legend after
 ggsave(legend_fig, filename = "../figures/legend.png", dpi = 500, width = 8, height = 0.5, units = "in")
 ```
+# check correlation for manuscript
+want to check correlation between traits to report in the manuscript
+```{r}
+check.cor <- merge(rosarea, rosnum, by = c("PotLabel", "Flat", "Pos", "Trt", "Geno", "Population", "grp", "EmergenceDate", "BoltingDate", "Date", "Date2", "DaysFromEmergence", "quad_date"), all = FALSE )
+# there is a lot of measurements with different days (1427 obs when all = TRUE) but still 768 observations only counting days where both measured on the same day
+cor.test(check.cor$LeafArea, check.cor$LeafNum) # r = 0.8566571, p<2.2e-16
+cor.test(check.cor$log_area, check.cor$LeafNum) # r = 0.8311089, p<2.2e-16
+
+```
+
