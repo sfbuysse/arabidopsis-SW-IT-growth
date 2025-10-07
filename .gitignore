@@ -2,8 +2,8 @@
 *.docx
 *.xlsx
 *.pdf
-# ignore photos of plants and people
-Photos/
+# ignore photos of notes and people. photos of plants included.
+Photos/Notes_Fut_Dec162024.jpg
 UURAF_photos/
 #ignore code used in process and versions with different authors
 scripts/archive_code/
