@@ -19,6 +19,8 @@ library(tidyr) # same as above
 library(ggplot2) # for making plots
 library(ggpubr) # for making plots
 library(emmeans) # for statistics
+#library(lme4) # for mixed modelling - not needed
+#library(lmerTest) # for p value from mixed model - not needed
 
 # prep for doing statistical analyses
 options(contrasts = c("contr.sum", "contr.poly"))
@@ -490,6 +492,48 @@ ln_fig
 ros_fig
 ```
 
+Summarize bolting time data by population to support our escape/avoidance results. The statistical analysis for this one trait is also in this section.
+```{r}
+# want time between emergence and bolting as the time to be analyzed
+BoltingAnalysis <- Emergence %>%
+  select(PotLabel, Treatment, EmergenceDate, BoltingDate) %>%
+  mutate(
+    Treatment = as.factor(Treatment),
+    EmergenceDate = as.Date(EmergenceDate, format = "%m/%d/%Y"),
+    BoltingDate = as.Date(BoltingDate, format = "%m/%d/%Y"),
+    Genotype = substr(PotLabel, 1, 3)
+  )
+
+# keep only plants that emerged and survived to bolting
+BoltingAnalysis <- BoltingAnalysis[complete.cases(BoltingAnalysis), ]
+
+# add Population columns
+BoltingAnalysis$Population <- "SW"
+BoltingAnalysis[BoltingAnalysis$Genotype < 900, "Population"] <- "IT"
+BoltingAnalysis$Population <- as.factor(BoltingAnalysis$Population)
+
+# calculate days to bolting
+BoltingAnalysis$DaysToBolting <- as.numeric(BoltingAnalysis$BoltingDate - BoltingAnalysis$EmergenceDate)
+
+# model 
+#bolt_lm <- lmer(DaysToBolting ~ Treatment * Population + (1|Genotype), data = BoltingAnalysis, contrasts = list(Treatment=contr.sum, Population = contr.sum))
+#plot(fitted(bolt_lm), residuals(bolt_lm, type = "pearson", scaled = TRUE))
+#summary(bolt_lm)
+
+# we don't have replication of genotypes so the previous  model is overfit. removing the random effect does not meaningfully change the results.
+bolt_lm2 <- lm(DaysToBolting ~ Treatment * Population, data = BoltingAnalysis, contrasts = list(Treatment=contr.sum, Population = contr.sum))
+plot(fitted(bolt_lm2), residuals(bolt_lm2, type = "pearson", scaled = TRUE))
+summary(bolt_lm2)
+
+# run anova for stats
+#anova(bolt_lm)
+anova(bolt_lm2)
+
+# get emmeans
+#bolting_means <- as.data.frame(emmeans(bolt_lm, specs = c("Treatment", "Population")))
+bolting_means2 <- as.data.frame(emmeans(bolt_lm2, specs = c("Treatment", "Population")))
+```
+
 
 ## Statistical Analysis
 This section has statistical analysis for each of the three traits. We are doing a two step analysis method where in the first step we fit a model for each genotype of the trait against time to get a growth rate (slope). Then in the second model we fit the growth rate as predicted by population, treatment, and their interaction. One negative about this method is that we lose the uncertainty around the slopes in the first model when we do the second model.
@@ -637,13 +681,14 @@ for (j in 1:length(area_by_geno)){
   slopes2$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
   # model data
   #
-  #modData = tmp$coefficients[1]+as.numeric(area_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(area_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  modData = tmp$coefficients[1]+as.numeric(area_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(area_by_geno[[j]]$quad_date)*tmp$coefficients[3]
   ## look at the model-predicted data curve on top of the actual data
-  #plot(area_by_geno[[j]]$DaysFromEmergence, area_by_geno[[j]]$log_area, bty="n", col="darkgray")
-  #points(area_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+  plot(area_by_geno[[j]]$DaysFromEmergence, area_by_geno[[j]]$log_area, bty="n", col="darkgray")
+  points(area_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
 
 }
 ```
+
 
 Now run the second model to look at differences by pop or trt on beta and gamma. Start with the linear only model.
 
@@ -880,10 +925,10 @@ for (j in 1:length(ln_by_geno)){
   slopes2_ln$gamma[j] <- tmp[["coefficients"]][["quad_date"]]
   slopes2_ln$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
   # model data
-  #modData = tmp$coefficients[1]+as.numeric(ln_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(ln_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  modData = tmp$coefficients[1]+as.numeric(ln_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(ln_by_geno[[j]]$quad_date)*tmp$coefficients[3]
   ## look at the model-predicted data curve on top of the actual data
-  #plot(ln_by_geno[[j]]$DaysFromEmergence, ln_by_geno[[j]]$LeafNum, bty="n", col="darkgray")
-  #points(ln_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+  plot(ln_by_geno[[j]]$DaysFromEmergence, ln_by_geno[[j]]$LeafNum, bty="n", col="darkgray")
+  points(ln_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
 
 }
 ```
@@ -1111,10 +1156,10 @@ for (j in 1:length(tn_by_geno)){
   slopes2_tn$gamma[j] <- tmp[["coefficients"]][["quad_date"]]
   slopes2_tn$intercept[j] <- tmp[["coefficients"]][["(Intercept)"]]
   # model data
-  #modData = tmp$coefficients[1]+as.numeric(tn_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(tn_by_geno[[j]]$quad_date)*tmp$coefficients[3]
+  modData = tmp$coefficients[1]+as.numeric(tn_by_geno[[j]]$DaysFromEmergence)*tmp$coefficients[2] + as.numeric(tn_by_geno[[j]]$quad_date)*tmp$coefficients[3]
   ## look at the model-predicted data curve on top of the actual data
-  #plot(tn_by_geno[[j]]$DaysFromEmergence, tn_by_geno[[j]]$TotalNum, bty="n", col="darkgray")
-  #points(tn_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
+  plot(tn_by_geno[[j]]$DaysFromEmergence, tn_by_geno[[j]]$TotalNum, bty="n", col="darkgray")
+  points(tn_by_geno[[j]]$DaysFromEmergence, modData,col="red",lwd=2)
 
 }
 ```
